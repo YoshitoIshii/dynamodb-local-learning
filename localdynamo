@@ -45,7 +45,8 @@ commands.scan = (options) => {
     var columns = arg2;
 
     var params = { TableName : tableName };
-    if(columns) params.AttributesToGet = columns.trim().split(",");
+    //if(columns) params.AttributesToGet = columns.trim().split(",");
+    if(columns) params.ProjectionExpression = columns;
 
 
     var scan = (lastEvaluatedKey) => {
