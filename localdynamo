@@ -69,21 +69,40 @@ commands.scan = () => {
 
         });
 };
-commands.get = () => {
+commands.scanidf = () => {
     var tableName = arg1;
     var id = arg2;
-    var params = { TableName : tableName };
+    var params = { 
+        TableName : tableName,
+        ScanFilter: {
+            id : {
+                ComparisonOperator: "EQ",
+                AttributeValueList: [id]
+            }
+        },
+    };
     return docClient.scan(params).promise()
         .then((data) => {
-            var items = data.Items;
-            var picked = items.filter((item)=>{
-                if(item.id) {
-                    return item.id == id;
-                }
-                return false;
-            });
-            console.log(picked);
+            //console.log(data.Count);
+            if(data.Count > 0) {
+                console.log(data.Items);
+            } else {
+                console.log("No items found");
+            }
         });
+
+//    return docClient.scan(params).promise()
+//        .then((data) => {
+//            var items = data.Items;
+//            var picked = items.filter((item)=>{
+//                if(item.id) {
+//                    return item.id == id;
+//                }
+//                return false;
+//            });
+//            console.log(picked);
+//        });
+
 };
 
 var fn = commands[command];
@@ -93,7 +112,7 @@ if(!fn) {
     console.log("Usage: ./localdynamo tables");
     console.log("Usage: ./localdynamo desc <table-name>");
     console.log("Usage: ./localdynamo scan <table-name> [<column>[,<column> ... ]]");
-    console.log("Usage: ./localdynamo get <table-name> <id>");
+    console.log("Usage: ./localdynamo scanidf <table-name> <id>");
 } else {
     fn();
 }
