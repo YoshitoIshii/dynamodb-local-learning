@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+
+var AWS = require("aws-sdk");
+
+var endpoint = process.env.AWS_ENDPOINT || 'http://localhost:8000';
+
+AWS.config.endpoint = new AWS.Endpoint(endpoint);
+var config = {apiVersion: '2012-08-10', region: "us-west-1"};
+var dynamodb = new AWS.DynamoDB(config);
+var docClient = new AWS.DynamoDB.DocumentClient(config);
+
+// console.info("Connect DynamoDB Local: us-west-1");
+
+var command = process.argv[2]; // tables    , desc      , scan             , get
+var arg1    = process.argv[3]; // null      , tableName , tableName        , tableName
+var arg2    = process.argv[4]; // null      , null      , AttributesToGet  , id
+var arg3    = process.argv[5]; // null      , null      , null             , null
+
+
+// Command list 
+var commands = {};
+
+commands.tables = () => {
+    var params = {};
+    return dynamodb.listTables(params, (error, data) => {
+        if(error) console.error(error);
+        else      data.TableNames.forEach((item)=>{console.log(item);});
+    });
+};
+
+commands.desc   = () => {
+    var params = {
+        TableName: arg1
+    };
+    console.log("\n----- %s -----",params.TableName);
+    dynamodb.describeTable(params, function(err, data) {
+        if (err) console.log(err, err.stack); 
+        else     data.Table.AttributeDefinitions.forEach((item)=>{ console.log(JSON.stringify(item)) });
+        console.log("----------------------\n");
+    });  
+};
+
+commands.scan = () => {
+    var tableName = arg1;
+    var columns = arg2;
+
+    var params = { TableName : tableName };
+    if(columns) params.AttributesToGet = columns.trim().split(",");
+    
+    return docClient.scan(params).promise()
+        .then((data) => {
+            if(params.AttributesToGet) {
+                var line = params.AttributesToGet.join("\t");
+                console.log("--------------------------------------------------------------");
+                console.log(" " + line );
+                console.log("--------------------------------------------------------------");
+            }
+            data.Items.forEach( (item, idx) => { 
+                if(params.AttributesToGet) {
+                    var values = [];
+                    params.AttributesToGet.forEach((attr) => { 
+                        values.push(item[attr]);
+                    });
+                    console.log(values.join("\t")); 
+                } else {
+                    console.log(JSON.stringify(item)); 
+                }
+            });
+
+        });
+};
+commands.get = () => {
+    var tableName = arg1;
+    var id = arg2;
+    var params = { TableName : tableName };
+    return docClient.scan(params).promise()
+        .then((data) => {
+            var items = data.Items;
+            var picked = items.filter((item)=>{
+                if(item.id) {
+                    return item.id == id;
+                }
+                return false;
+            });
+            console.log(picked);
+        });
+};
+
+var fn = commands[command];
+
+if(!fn) {
+    console.log("no such command:" + command);
+    console.log("Usage: ./localdynamo tables");
+    console.log("Usage: ./localdynamo desc <table-name>");
+    console.log("Usage: ./localdynamo scan <table-name> [<column>[,<column> ... ]]");
+    console.log("Usage: ./localdynamo get <table-name> <id>");
+} else {
+    fn();
+}
+
+//console.log(JSON.stringify({command: command, arg1:arg1, arg2:arg2, arg3:arg3}));
+
