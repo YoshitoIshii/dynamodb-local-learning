@@ -40,45 +40,57 @@ commands.desc   = () => {
     });  
 };
 
-commands.scan = () => {
+commands.scan = (options) => {
     var tableName = arg1;
     var columns = arg2;
 
     var params = { TableName : tableName };
     if(columns) params.AttributesToGet = columns.trim().split(",");
+
+
+    var scan = (lastEvaluatedKey) => {
+        if(lastEvaluatedKey) params.ExclusiveStartKey = lastEvaluatedKey;
     
-    return docClient.scan(params).promise()
-        .then((data) => {
-            if(params.AttributesToGet) {
-                var line = params.AttributesToGet.join("\t");
-                console.log("--------------------------------------------------------------");
-                console.log(" " + line );
-                console.log("--------------------------------------------------------------");
-            }
-            data.Items.forEach( (item, idx) => { 
+        return docClient.scan(params).promise()
+            .then((data) => {
                 if(params.AttributesToGet) {
-                    var values = [];
-                    params.AttributesToGet.forEach((attr) => { 
-                        values.push(item[attr]);
-                    });
-                    console.log(values.join("\t")); 
+                    var line = params.AttributesToGet.join("\t");
+                    console.log("--------------------------------------------------------------");
+                    console.log(" " + line );
+                    console.log("--------------------------------------------------------------");
+                }
+                data.Items.forEach( (item, idx) => { 
+                    if(params.AttributesToGet) {
+                        var values = [];
+                        params.AttributesToGet.forEach((attr) => { 
+                            values.push(item[attr]);
+                        });
+                        console.log(values.join("\t")); 
+                    } else {
+                        console.log(JSON.stringify(item)); 
+                    }
+                });
+                if(data.LastEvaluatedKey) {
+                    return Promise.resolve(data.LastEvaluatedKey).then(scan);
                 } else {
-                    console.log(JSON.stringify(item)); 
+                    return Promise.resolve();
                 }
             });
+    };
+    return scan();
 
-        });
 };
 commands.scanidf = () => {
     var tableName = arg1;
     var id = arg2;
     var params = { 
         TableName : tableName,
-        ScanFilter: {
-            id : {
-                ComparisonOperator: "EQ",
-                AttributeValueList: [id]
-            }
+        FilterExpression : "#id = :id",
+        ExpressionAttributeNames : {
+            "#id" : "id"
+        },
+        ExpressionAttributeValues : {
+            ":id" : id
         },
     };
     return docClient.scan(params).promise()
@@ -90,19 +102,6 @@ commands.scanidf = () => {
                 console.log("No items found");
             }
         });
-
-//    return docClient.scan(params).promise()
-//        .then((data) => {
-//            var items = data.Items;
-//            var picked = items.filter((item)=>{
-//                if(item.id) {
-//                    return item.id == id;
-//                }
-//                return false;
-//            });
-//            console.log(picked);
-//        });
-
 };
 
 var fn = commands[command];
