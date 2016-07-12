@@ -11,7 +11,7 @@ var docClient = new AWS.DynamoDB.DocumentClient(config);
 
 // console.info("Connect DynamoDB Local: us-west-1");
 
-var command = process.argv[2]; // tables    , desc      , scan             , get
+var command = process.argv[2]; // tables    , desc      , scan             , scanidf
 var arg1    = process.argv[3]; // null      , tableName , tableName        , tableName
 var arg2    = process.argv[4]; // null      , null      , AttributesToGet  , id
 var arg3    = process.argv[5]; // null      , null      , null             , null
