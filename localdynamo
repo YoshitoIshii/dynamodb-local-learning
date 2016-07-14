@@ -11,11 +11,12 @@ var docClient = new AWS.DynamoDB.DocumentClient(config);
 
 // console.info("Connect DynamoDB Local: us-west-1");
 
-var command = process.argv[2]; // tables    , desc      , scan             , scanidf
-var arg1    = process.argv[3]; // null      , tableName , tableName        , tableName
-var arg2    = process.argv[4]; // null      , null      , AttributesToGet  , id
-var arg3    = process.argv[5]; // null      , null      , null             , null
-
+var command = process.argv[2]; // tables    , desc      , scan             , scanf      , delete
+var arg1    = process.argv[3]; // null      , tableName , tableName        , tableName  , tableName
+var arg2    = process.argv[4]; // null      , null      , AttributesToGet  , key        , key
+var arg3    = process.argv[5]; // null      , null      , null             , value      , value
+var arg4    = process.argv[6]; // null      , null      , null             , null       , null
+var arg5    = process.argv[7]; // null      , null      , null             , null       , null
 
 // Command list 
 var commands = {};
@@ -35,7 +36,8 @@ commands.desc   = () => {
     console.log("\n----- %s -----",params.TableName);
     dynamodb.describeTable(params, function(err, data) {
         if (err) console.log(err, err.stack); 
-        else     data.Table.AttributeDefinitions.forEach((item)=>{ console.log(JSON.stringify(item)) });
+        else     console.log(JSON.stringify(data));
+        //else     data.Table.AttributeDefinitions.forEach((item)=>{ console.log(JSON.stringify(item)) });
         console.log("----------------------\n");
     });  
 };
@@ -81,17 +83,18 @@ commands.scan = (options) => {
     return scan();
 
 };
-commands.scanidf = () => {
+commands.scanf = () => {
     var tableName = arg1;
-    var id = arg2;
+    var attrName = arg2;
+    var attrValue = arg3;
     var params = { 
         TableName : tableName,
-        FilterExpression : "#id = :id",
+        FilterExpression : "#k = :v",
         ExpressionAttributeNames : {
-            "#id" : "id"
+            "#k" : attrName
         },
         ExpressionAttributeValues : {
-            ":id" : id
+            ":v" : attrValue
         },
     };
     return docClient.scan(params).promise()
@@ -102,6 +105,38 @@ commands.scanidf = () => {
             } else {
                 console.log("No items found");
             }
+        })
+        .catch(error =>{
+            console.error(error);
+        });
+};
+
+commands.delete = () => {
+    var tableName = arg1;
+    var key = arg2;
+    var value = arg3;
+    var params = { 
+        TableName : tableName,
+        FilterExpression : "#k = :v",
+        ExpressionAttributeNames : {
+            "#k" : key
+        },
+        ExpressionAttributeValues : {
+            ":v" : value
+        },
+        ReturnConsumedCapacity: "INDEXES",
+    };
+    return docClient.scan(params).promise()
+        .then((data) => {
+            //console.log(data.Count);
+            if(data.Count > 0) {
+                console.log(data.Items);
+            } else {
+                console.log("No items found");
+            }
+        })
+        .catch(error =>{
+            console.error(error);
         });
 };
 
@@ -112,7 +147,8 @@ if(!fn) {
     console.log("Usage: ./localdynamo tables");
     console.log("Usage: ./localdynamo desc <table-name>");
     console.log("Usage: ./localdynamo scan <table-name> [<column>[,<column> ... ]]");
-    console.log("Usage: ./localdynamo scanidf <table-name> <id>");
+    console.log("Usage: ./localdynamo scanf <table-name> <attribute-name> <attribute-value>");
+//    console.log("Usage: ./localdynamo delete <table-name> <attribute-name> <attribute-value>");
 } else {
     fn();
 }
